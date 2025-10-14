@@ -18,7 +18,35 @@ class CMapMaker {
 		mapLibre.on('zoomend', this.eventZoomMap.bind(cMapMaker));			// ズーム終了時に表示更新
 		list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));	// 
 		list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));	// category change
+
+		// 追加：地図クリックイベント
+		mapLibre.on('click', this.eventMapClick.bind(this));
 	};
+
+	// 追加：地図クリックイベントハンドラ
+	eventMapClick(e) {
+		const lngLat = e.lngLat; // mapLibreの仕様に応じて調整
+		// ピン追加
+		const marker = poiMarker.addMarker(lngLat, {
+			onClick: () => {
+				winCont.modal_open({
+					title: "新しいメモ・写真を追加",
+					message: modal_customform.make(lngLat), // メモ・写真投稿フォームHTML
+					mode: "submit",
+					callback_close: winCont.modal_close,
+					menu: false
+				});
+			}
+		});
+		// 初回クリック時にすぐフォームを出したい場合（ピン追加は省略可）
+		winCont.modal_open({
+			title: "新しいメモ・写真を追加",
+			message: modal_customform.make(lngLat),
+			mode: "submit",
+			callback_close: winCont.modal_close,
+			menu: false
+		});
+	}
 
 	about() {
 		let msg = { msg: glot.get("about_message"), ttl: glot.get("about") };
@@ -101,7 +129,6 @@ class CMapMaker {
 		console.log("viewPoi: End.")
 	}
 
-	// 画面内のActivity画像を表示させる
 	makeImages() {
 		let LL = mapLibre.get_LL(true);
 		let acts = poiCont.adata.filter(act => { return geoCont.checkInner(act.lnglat, LL) && act.picture_url1 !== "" });
@@ -115,7 +142,6 @@ class CMapMaker {
 		winCont.setImages(images, acts);
 	}
 
-	// OSMとGoogle SpreadSheetからPoiを取得してリスト化
 	updateOsmPoi(targets) {
 		return new Promise((resolve) => {
 			console.log("cMapMaker: updateOsmPoi: Start");
@@ -197,7 +223,7 @@ class CMapMaker {
 		winCont.modal_progress(0);
 		this.open_osmid = osmid;
 
-		message += modal_osmbasic.make(tags);		// append OSM Tags(仮…テイクアウトなど判別した上で最終的には分ける)
+		message += modal_osmbasic.make(tags);		// append OSM Tags
 		if (tags.wikipedia !== undefined) {			// append wikipedia
 			message += modal_wikipedia.element();
 			winCont.modal_progress(100);
@@ -207,7 +233,6 @@ class CMapMaker {
 			});
 		};
 
-		// append activity
 		let catname = listTable.getSelCategory() !== "-" ? `&category=${listTable.getSelCategory()}` : "";
 		let actlists = poiCont.get_actlist(osmid);
 		history.replaceState('', '', location.pathname + "?" + osmid + (!openid ? "" : "." + openid) + catname + location.hash);
@@ -275,7 +300,6 @@ class CMapMaker {
 		link.click();
 	};
 
-	// EVENT: map moveend発生時のイベント
 	eventMoveMap() {
 		const MoveMapPromise = function (resolve, reject) {
 			console.log("eventMoveMap: Start.");
@@ -307,11 +331,7 @@ class CMapMaker {
 							bindMoveMapPromise(resolve, reject);	// 失敗時はリトライ(接続先はoverpass.jsで変更)
 							break;
 					}
-				})/*.catch(() => {
-					this.moveMapBusy = 0;
-					console.log("eventMoveMap: Reject");
-					reject();
-				});*/
+				})
 			}, 700);
 		};
 		return new Promise((resolve, reject) => {
@@ -324,7 +344,6 @@ class CMapMaker {
 		});
 	};
 
-	// EVENT: View Zoom Level & Status Comment
 	eventZoomMap() {
 		let poizoom = false;
 		for (let [key, value] of Object.entries(Conf.view.poiZoom)) {
@@ -335,7 +354,6 @@ class CMapMaker {
 		zoomlevel.innerHTML = "<h2 class='zoom'>" + message + "</h2>";
 	};
 
-	// EVENT: キーワード検索
 	eventChangeKeyword() {
 		if (this.changeKeywordWaitTime > 0) {
 			window.clearTimeout(this.changeKeywordWaitTime);
@@ -347,7 +365,6 @@ class CMapMaker {
 		}, 500);
 	};
 
-	// EVENT: カテゴリ変更時のイベント
 	eventChangeCategory() {
 		let selcategory = listTable.getSelCategory();
 		let targets = Conf.listTable.target == "targets" ? [selcategory] : ["-"];
