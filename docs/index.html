@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Fukuchiyama Community Map</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <style>
+    html,body,#map{height:100%;margin:0}
+    .toolbar{position:absolute;top:10px;left:10px;z-index:1000;background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",Meiryo,sans-serif}
+    .toolbar button{margin-right:6px}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.35)}
+    .modal.active{display:flex}
+    .panel{width:min(640px,92vw);background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+    .row{margin:8px 0} input[type=text],textarea{width:100%;padding:8px}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="toolbar">
+    <button id="btn-memo">＋ メモ投稿</button>
+    <button id="btn-photo">＋ 写真投稿</button>
+    <span id="hint">地図をクリックすると投稿位置が入ります</span>
+  </div>
+
+  <div id="modal" class="modal">
+    <div class="panel">
+      <h3 id="form-title">新規投稿</h3>
+      <form id="postForm">
+        <input type="hidden" name="type" id="type">
+        <input type="hidden" name="lat" id="lat">
+        <input type="hidden" name="lng" id="lng">
+        <div class="row"><label>タイトル<br><input type="text" name="title" id="title" required></label></div>
+        <div class="row"><label>本文 / 説明<br><textarea name="body" id="body" rows="4" required></textarea></label></div>
+        <div class="row" id="row-photo" style="display:none"><label>写真ファイル<br><input type="file" name="photo" id="photo" accept="image/*"></label></div>
+        <div class="row" style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="cancel">キャンセル</button>
+          <button type="submit">送信</button>
+        </div>
+        <div id="msg" style="margin-top:6px;color:#666"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
