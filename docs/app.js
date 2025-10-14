@@ -13,8 +13,12 @@
     photoRow.style.display=(kind==='photo')?'':'none'; titleEl.value=''; bodyEl.value=''; photoEl.value=''; msgEl.textContent='';
     if(currentLatLng){latEl.value=currentLatLng.lat.toFixed(6); lngEl.value=currentLatLng.lng.toFixed(6);} modal.classList.add('active'); }
   function closeModal(){ modal.classList.remove('active'); }
-  map.on('click',e=>{ currentLatLng=e.latlng; latEl.value=e.latlng.lat.toFixed(6); lngEl.value=e.latlng.lng.toFixed(6); });openModal('memo'); // クリックしたら自動でメモ投稿フォームを開く
-  });
+  map.on('click', (e) => {
+  currentLatLng = e.latlng;
+  latEl.value = e.latlng.lat.toFixed(6);
+  lngEl.value = e.latlng.lng.toFixed(6);
+  openModal('memo'); // ← コールはココ（リスナーの中）
+});
   $('#btn-memo').onclick=()=>openModal('memo'); $('#btn-photo').onclick=()=>openModal('photo'); $('#cancel').onclick=()=>closeModal();
 
   document.getElementById('postForm').addEventListener('submit', async ev=>{
