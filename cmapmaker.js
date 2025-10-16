@@ -1,3 +1,6 @@
+// ファイル先頭のどこか（class の外）に追加
+const USER_POST_ENDPOINT = "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLg4Js2cXVY8picvUfpvrVtrDVIbsfNyYeoTu9-oCvm62VTHhT2F_GdyXCJ47Qyhhg7Q9MtCf2Or5_yHtEeIuKqMv_NE6fDjRZCmKSVQxq_fmFrP4IrAGCbhMudc65fS7dionA0D6fS9V-R7Hlp-zCBq-KLbzynPw02fGidv6ia66nOYQ8ih-pmlb6DA8r0Ne54M2P2z4P2TJVy7VX3dwOrIOI_wKqTPBsFuDwXFLa25AK7q7D7AG_9gWdj49nCWH9SpAcKuSjM7K5JKnaCQkpOzg1ru7g&lib=MwsfxAodpJw3CsJWBj4vzWTP7KQn_Ki8S";
+
 class CMapMaker {
 
   constructor() {
