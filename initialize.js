@@ -65,6 +65,8 @@ window.addEventListener("DOMContentLoaded", function () {
 
 			const init_close = function () {
 				cMapMaker.addEvents();
+				cMapMaker.loadUserPoints(true); // 追加: 起動時にユーザー投稿を読み込み
+
 				listTable.makeSelectList(Conf.listTable.category);	// Must be executed before eventMoveMap
 				let eventMoveMap = cMapMaker.eventMoveMap.bind(cMapMaker);
 				eventMoveMap().then(() => {
@@ -91,7 +93,7 @@ window.addEventListener("DOMContentLoaded", function () {
 							}
 						}
 					}
-					cMapMaker.addEvents()
+					// 削除: cMapMaker.addEvents(); // 重複登録を避けるため
 				})
 			}
 
