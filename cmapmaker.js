@@ -1,121 +1,138 @@
-// ファイル先頭のどこか（class の外）に追加
-const USER_POST_ENDPOINT = "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLg4Js2cXVY8picvUfpvrVtrDVIbsfNyYeoTu9-oCvm62VTHhT2F_GdyXCJ47Qyhhg7Q9MtCf2Or5_yHtEeIuKqMv_NE6fDjRZCmKSVQxq_fmFrP4IrAGCbhMudc65fS7dionA0D6fS9V-R7Hlp-zCBq-KLbzynPw02fGidv6ia66nOYQ8ih-pmlb6DA8r0Ne54M2P2z4P2TJVy7VX3dwOrIOI_wKqTPBsFuDwXFLa25AK7q7D7AG_9gWdj49nCWH9SpAcKuSjM7K5JKnaCQkpOzg1ru7g&lib=MwsfxAodpJw3CsJWBj4vzWTP7KQn_Ki8S";
+// USER投稿エンドポイント（あなたのGASのWebアプリURLに置き換えてください）
+const USER_POST_ENDPOINT = "https://script.google.com/macros/s/AKfycbx_7YnOsBVnEKfORMcLaPJ9ZYVRWj5OJRdNLiLZZJkYruMzbJDxhcIHYd3QtVv1u_Qf/exec";
 
 class CMapMaker {
 
-  constructor() {
-    this.status = "initialize";
-    this.detail = false;
-    this.open_osmid = "";
-    this.last_modetime = 0;
-    this.mode = "map";
+	constructor() {
+		this.status = "initialize";
+		this.detail = false;				// viewDetail表示中はtrue
+		this.open_osmid = "";				// viewDetail表示中はosmid
+		this.last_modetime = 0;
+		this.mode = "map";
 
-    this.id = 0;
-    this.moveMapBusy = 0;
-    this.changeKeywordWaitTime;
+		this.id = 0;
+		this.moveMapBusy = 0;
+		this.changeKeywordWaitTime;
 
-    // 追加: クリック時の仮マーカー用
-    this.tempMarker = null;
-  };
+		// 追加: クリック時の仮マーカー用
+		this.tempMarker = null;
 
-  addEvents() {
-    console.log("CMapMaker: init.");
-    mapLibre.on('moveend', this.eventMoveMap.bind(cMapMaker));    // 既存
-    mapLibre.on('zoomend', this.eventZoomMap.bind(cMapMaker));    // 既存
-    list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));
-    list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));
+		// 追加: ユーザー投稿マーカー管理
+		this.userMarkers = [];
+	};
 
-    // 地図クリックイベント（これが呼ばれるように後述の手順2で addEvents() を実行します）
-    mapLibre.on('click', this.eventMapClick.bind(this));
-  };
+	addEvents() {
+		console.log("CMapMaker: init.");
+		mapLibre.on('moveend', this.eventMoveMap.bind(cMapMaker));   		// マップ移動時の処理
+		mapLibre.on('zoomend', this.eventZoomMap.bind(cMapMaker));			// ズーム終了時に表示更新
+		list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));	// 
+		list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));	// category change
 
-  // ここを「未定義の関数を呼ばない安全な最小実装」に置き換え
-  eventMapClick(e) {
-    // maplibre-gl の click イベント: e.lngLat = { lng, lat }
-    const { lng, lat } = e.lngLat || {};
-    if (lng == null || lat == null) return;
+		// 地図クリックイベント
+		mapLibre.on('click', this.eventMapClick.bind(this));
+	};
 
-    // 既存の仮マーカーがあれば削除
-    if (this.tempMarker) {
-      try { this.tempMarker.remove(); } catch(_) {}
-      this.tempMarker = null;
-    }
+	// 地図クリックイベントハンドラ（安全な実装）
+	eventMapClick(e) {
+		// maplibre-gl の click イベント: e.lngLat = { lng, lat }
+		const { lng, lat } = e.lngLat || {};
+		if (lng == null || lat == null) return;
 
-    // クリック位置に仮マーカーを設置（赤）
-    try {
-      this.tempMarker = new maplibregl.Marker({ color: '#d22' })
-        .setLngLat([lng, lat])
-        .addTo(mapLibre.map); // geolib.js で作った MapLibre の実体は mapLibre.map に保持されています
-    } catch (err) {
-      console.error('Failed to add temp marker:', err);
-    }
+		// 既存の仮マーカーがあれば削除
+		if (this.tempMarker) {
+			try { this.tempMarker.remove(); } catch(_) {}
+			this.tempMarker = null;
+		}
 
-    // まずは動作確認用の簡易フォーム（保存先は後で実装）
-    const formId = 'memophoto-form';
-    const html = `
-      <form id="${formId}" style="display:flex;flex-direction:column;gap:8px;min-width:280px">
-        <input type="hidden" name="lat" value="${lat}">
-        <input type="hidden" name="lng" value="${lng}">
-        <label>種類:
-          <select name="type">
-            <option value="memo">メモ</option>
-            <option value="photo">写真</option>
-          </select>
-        </label>
-        <label>タイトル<br><input type="text" name="title" required></label>
-        <label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
-        <label id="photo-row" style="display:none">写真ファイル<br><input type="file" name="photo" accept="image/*"></label>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
-          <button type="button" id="cancel-btn">キャンセル</button>
-          <button type="submit">送信</button>
-        </div>
-        <div id="memophoto-msg" style="margin-top:4px;color:#666"></div>
-      </form>
-      <script>
-        (function(){
-          const form = document.getElementById('${formId}');
-          const typeEl = form.querySelector('select[name="type"]');
-          const photoRow = form.querySelector('#photo-row');
-          const msgEl = form.querySelector('#memophoto-msg');
+		// クリック位置に仮マーカーを設置（赤）
+		try {
+			this.tempMarker = new maplibregl.Marker({ color: '#d22' })
+				.setLngLat([lng, lat])
+				.addTo(mapLibre.map); // geolib.js の this.map は mapLibre.map にあります
+		} catch (err) {
+			console.error('Failed to add temp marker:', err);
+		}
 
-          function updatePhotoRow(){
-            photoRow.style.display = (typeEl.value === 'photo') ? '' : 'none';
-          }
-          typeEl.addEventListener('change', updatePhotoRow);
-          updatePhotoRow();
+		// フォームID（ユニークに）
+		const formId = 'memophoto-form';
+		const html = `
+			<form id="${formId}" style="display:flex;flex-direction:column;gap:8px;min-width:280px">
+				<input type="hidden" name="lat" value="${lat}">
+				<input type="hidden" name="lng" value="${lng}">
+				<label>種類:
+					<select name="type">
+						<option value="memo">メモ</option>
+						<option value="photo">写真</option>
+					</select>
+				</label>
+				<label>タイトル<br><input type="text" name="title" required></label>
+				<label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
+				<label id="photo-row" style="display:none">写真ファイル<br><input type="file" name="photo" accept="image/*"></label>
+				<div style="display:flex;gap:8px;justify-content:flex-end">
+					<button type="button" id="cancel-btn">キャンセル</button>
+					<button type="submit">送信</button>
+				</div>
+				<div id="memophoto-msg" style="margin-top:4px;color:#666"></div>
+			</form>
+			<script>
+				(function(){
+					const form = document.getElementById('${formId}');
+					const typeEl = form.querySelector('select[name="type"]');
+					const photoRow = form.querySelector('#photo-row');
+					const msgEl = form.querySelector('#memophoto-msg');
 
-          document.getElementById('cancel-btn').addEventListener('click', () => {
-            try { winCont.modal_close(); } catch(_){}
-          });
+					function updatePhotoRow(){
+						photoRow.style.display = (typeEl.value === 'photo') ? '' : 'none';
+					}
+					typeEl.addEventListener('change', updatePhotoRow);
+					updatePhotoRow();
 
-          // 送信: まずはダミー（次のステップでAPI連携を実装）
-          form.addEventListener('submit', async (ev) => {
-            ev.preventDefault();
-            msgEl.textContent = '送信中...';
+					document.getElementById('cancel-btn').addEventListener('click', () => {
+						try { winCont.modal_close(); } catch(_){}
+					});
 
-            try {
-              const fd = new FormData(form);
-              // TODO: 保存先(API/GAS)にPOSTする処理をここに実装
+					// 送信: 実際に USER_POST_ENDPOINT へ POST し、成功したら loadUserPoints を呼ぶ
+					form.addEventListener('submit', async (ev) => {
+						ev.preventDefault();
+						msgEl.textContent = '送信中...';
 
-              // 動作確認のため即時成功扱い
-              msgEl.textContent = '投稿しました（ダミー）。';
-              setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 400);
-            } catch (err) {
-              msgEl.textContent = 'エラー: ' + (err && err.message ? err.message : err);
-            }
-          });
-        })();
-      </script>
-    `;
+						try {
+							if (!USER_POST_ENDPOINT) throw new Error('投稿エンドポイントが未設定です');
 
-    winCont.modal_open({
-      title: "新しいメモ・写真を追加",
-      message: html,
-      mode: "close",           // まずは閉じるだけ（送信はフォーム内JSで処理）
-      callback_close: winCont.modal_close,
-      menu: false
-    });
-  }
+							const fd = new FormData(form);
+
+							// 注意: 現時点のGASは写真未対応の想定です（photoは無視されるか特殊扱い）。
+							const res = await fetch(USER_POST_ENDPOINT, { method: 'POST', body: fd });
+							const json = await res.json();
+							if (!json.ok) throw new Error(json.error || '投稿に失敗しました');
+
+							msgEl.textContent = '投稿しました。マップを更新します…';
+							// モーダルを閉じる（短い遅延）
+							setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 200);
+
+							// 仮マーカーを消す
+							try { if (cMapMaker.tempMarker) { cMapMaker.tempMarker.remove(); cMapMaker.tempMarker = null; } } catch(_){}
+
+							// 投稿一覧を再読み込みしてマーカーを更新
+							try { cMapMaker.loadUserPoints(false); } catch(e){ console.warn('loadUserPoints エラー', e); }
+
+						} catch (err) {
+							msgEl.textContent = 'エラー: ' + (err && err.message ? err.message : err);
+							console.error('submit error', err);
+						}
+					});
+				})();
+			</script>
+		`;
+
+		winCont.modal_open({
+			title: "新しいメモ・写真を追加",
+			message: html,
+			mode: "close",           // まずは閉じるだけ（送信はフォーム内JSで処理）
+			callback_close: winCont.modal_close,
+			menu: false
+		});
+	}
 
 	about() {
 		let msg = { msg: glot.get("about_message"), ttl: glot.get("about") };
@@ -163,6 +180,61 @@ class CMapMaker {
 			};
 		});
 	};
+
+	// 追加: ユーザーポイント読み込みと描画
+	async loadUserPoints(resetView) {
+		if (!USER_POST_ENDPOINT) {
+			console.warn('USER_POST_ENDPOINT が未設定です');
+			return;
+		}
+		try {
+			const url = USER_POST_ENDPOINT + '?mode=list&_=' + Date.now();
+			const res = await fetch(url);
+			const data = await res.json();
+			if (!data.ok) throw new Error('取得失敗');
+
+			// 既存のユーザーマーカーを削除
+			this.userMarkers.forEach(m => { try { m.remove(); } catch(_) {} });
+			this.userMarkers = [];
+
+			if (!data.items || data.items.length === 0) return;
+
+			// マーカー生成
+			const bounds = new maplibregl.LngLatBounds();
+			data.items.forEach(it => {
+				try {
+					const color = (it.type === 'photo') ? '#2a6' : '#1e88e5';
+					const marker = new maplibregl.Marker({ color })
+						.setLngLat([it.lng, it.lat])
+						.setPopup(new maplibregl.Popup({ offset: 24 }).setHTML(this._makeUserPopupHTML(it)))
+						.addTo(mapLibre.map);
+					this.userMarkers.push(marker);
+					bounds.extend([it.lng, it.lat]);
+				} catch (err) {
+					console.warn('ユーザーマーカー追加失敗', err, it);
+				}
+			});
+
+			if (resetView && data.items.length) {
+				try { mapLibre.map.fitBounds(bounds, { padding: 24, maxZoom: 18 }); } catch(_) {}
+			}
+		} catch (err) {
+			console.error('loadUserPoints error:', err);
+		}
+	}
+
+	// ポップアップHTML（簡易）
+	_makeUserPopupHTML(it) {
+		const esc = s => (s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+		const nl2br = s => (s || '').replace(/\n/g, '<br>');
+		const title = esc(it.title || '（無題）');
+		const body  = nl2br(esc(it.body || ''));
+		if (it.type === 'photo' && it.photo_url) {
+			return `<b>${title}</b><br><img src="${it.photo_url}" style="max-width:240px;border-radius:6px"><br>${body}<br><small>${it.created_at || ''}</small>`;
+		} else {
+			return `<b>${title}</b><br>${body}<br><small>${it.created_at || ''}</small>`;
+		}
+	}
 
 	viewArea(targets) {			// Areaを表示させる
 		console.log(`viewArea: Start.`);
