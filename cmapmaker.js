@@ -1,5 +1,5 @@
 // USER投稿エンドポイント（あなたのGASのWebアプリURLに置き換えてください）
-const USER_POST_ENDPOINT = "https://script.google.com/macros/s/AKfycbx6TgzuidqZxpCViAFdnQ9Ptar6XVllQu1Jza7VsVP2zoMlv6UN-c9MNeuFg8_bH_dk/exec";
+const USER_POST_ENDPOINT = "https://script.google.com/macros/s/AKfycbwf9FaYa2HGUe0qVZ-kpcXlTnE-QVQDaJ1zAPM2Et2pq0JzZnOLDywgfM3n7Ov5pDU/exec";
 
 class CMapMaker {
 
