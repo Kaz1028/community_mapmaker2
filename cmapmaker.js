@@ -1,124 +1,118 @@
 class CMapMaker {
 
-	constructor() {
-		this.status = "initialize";
-		this.detail = false;				// viewDetail表示中はtrue
-		this.open_osmid = "";				// viewDetail表示中はosmid
-		this.last_modetime = 0;
-		this.mode = "map";
+  constructor() {
+    this.status = "initialize";
+    this.detail = false;
+    this.open_osmid = "";
+    this.last_modetime = 0;
+    this.mode = "map";
 
-		this.id = 0;
-		this.moveMapBusy = 0;
-		this.changeKeywordWaitTime;
+    this.id = 0;
+    this.moveMapBusy = 0;
+    this.changeKeywordWaitTime;
 
-		// 追加: クリック時の仮マーカー用
-		this.tempMarker = null;
-	};
+    // 追加: クリック時の仮マーカー用
+    this.tempMarker = null;
+  };
 
-	addEvents() {
-		console.log("CMapMaker: init.");
-		mapLibre.on('moveend', this.eventMoveMap.bind(cMapMaker));   		// マップ移動時の処理
-		mapLibre.on('zoomend', this.eventZoomMap.bind(cMapMaker));			// ズーム終了時に表示更新
-		list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));	// 
-		list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));	// category change
+  addEvents() {
+    console.log("CMapMaker: init.");
+    mapLibre.on('moveend', this.eventMoveMap.bind(cMapMaker));    // 既存
+    mapLibre.on('zoomend', this.eventZoomMap.bind(cMapMaker));    // 既存
+    list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));
+    list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));
 
-		// 地図クリックイベント
-		mapLibre.on('click', this.eventMapClick.bind(this));
-	};
+    // 地図クリックイベント（これが呼ばれるように後述の手順2で addEvents() を実行します）
+    mapLibre.on('click', this.eventMapClick.bind(this));
+  };
 
-	// 地図クリックイベントハンドラ（安全な最小実装）
-	eventMapClick(e) {
-		// maplibre-gl の click イベント: e.lngLat = { lng, lat }
-		const { lng, lat } = e.lngLat || {};
-		if (lng == null || lat == null) return;
+  // ここを「未定義の関数を呼ばない安全な最小実装」に置き換え
+  eventMapClick(e) {
+    // maplibre-gl の click イベント: e.lngLat = { lng, lat }
+    const { lng, lat } = e.lngLat || {};
+    if (lng == null || lat == null) return;
 
-		// 既存の仮マーカーがあれば削除
-		if (this.tempMarker) {
-			try { this.tempMarker.remove(); } catch(_) {}
-			this.tempMarker = null;
-		}
+    // 既存の仮マーカーがあれば削除
+    if (this.tempMarker) {
+      try { this.tempMarker.remove(); } catch(_) {}
+      this.tempMarker = null;
+    }
 
-		// クリック位置に仮マーカーを設置（赤）
-		try {
-			this.tempMarker = new maplibregl.Marker({ color: '#d22' })
-				.setLngLat([lng, lat])
-				.addTo(mapLibre.map); // geolib.js の this.map は mapLibre.map にあります
-		} catch (err) {
-			console.error('Failed to add temp marker:', err);
-		}
+    // クリック位置に仮マーカーを設置（赤）
+    try {
+      this.tempMarker = new maplibregl.Marker({ color: '#d22' })
+        .setLngLat([lng, lat])
+        .addTo(mapLibre.map); // geolib.js で作った MapLibre の実体は mapLibre.map に保持されています
+    } catch (err) {
+      console.error('Failed to add temp marker:', err);
+    }
 
-		// まずは動作確認用の簡易フォーム（後で送信先を実装）
-		const formId = 'memophoto-form';
-		const html = `
-			<form id="${formId}" style="display:flex;flex-direction:column;gap:8px;min-width:280px">
-				<input type="hidden" name="lat" value="${lat}">
-				<input type="hidden" name="lng" value="${lng}">
-				<label>種類:
-					<select name="type">
-						<option value="memo">メモ</option>
-						<option value="photo">写真</option>
-					</select>
-				</label>
-				<label>タイトル<br><input type="text" name="title" required></label>
-				<label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
-				<label id="photo-row" style="display:none">写真ファイル<br><input type="file" name="photo" accept="image/*"></label>
-				<div style="display:flex;gap:8px;justify-content:flex-end">
-					<button type="button" id="cancel-btn">キャンセル</button>
-					<button type="submit">送信</button>
-				</div>
-				<div id="memophoto-msg" style="margin-top:4px;color:#666"></div>
-			</form>
-			<script>
-				(function(){
-					const form = document.getElementById('${formId}');
-					const typeEl = form.querySelector('select[name="type"]');
-					const photoRow = form.querySelector('#photo-row');
-					const msgEl = form.querySelector('#memophoto-msg');
+    // まずは動作確認用の簡易フォーム（保存先は後で実装）
+    const formId = 'memophoto-form';
+    const html = `
+      <form id="${formId}" style="display:flex;flex-direction:column;gap:8px;min-width:280px">
+        <input type="hidden" name="lat" value="${lat}">
+        <input type="hidden" name="lng" value="${lng}">
+        <label>種類:
+          <select name="type">
+            <option value="memo">メモ</option>
+            <option value="photo">写真</option>
+          </select>
+        </label>
+        <label>タイトル<br><input type="text" name="title" required></label>
+        <label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
+        <label id="photo-row" style="display:none">写真ファイル<br><input type="file" name="photo" accept="image/*"></label>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="cancel-btn">キャンセル</button>
+          <button type="submit">送信</button>
+        </div>
+        <div id="memophoto-msg" style="margin-top:4px;color:#666"></div>
+      </form>
+      <script>
+        (function(){
+          const form = document.getElementById('${formId}');
+          const typeEl = form.querySelector('select[name="type"]');
+          const photoRow = form.querySelector('#photo-row');
+          const msgEl = form.querySelector('#memophoto-msg');
 
-					function updatePhotoRow(){
-						photoRow.style.display = (typeEl.value === 'photo') ? '' : 'none';
-					}
-					typeEl.addEventListener('change', updatePhotoRow);
-					updatePhotoRow();
+          function updatePhotoRow(){
+            photoRow.style.display = (typeEl.value === 'photo') ? '' : 'none';
+          }
+          typeEl.addEventListener('change', updatePhotoRow);
+          updatePhotoRow();
 
-					document.getElementById('cancel-btn').addEventListener('click', () => {
-						try { winCont.modal_close(); } catch(_){}
-					});
+          document.getElementById('cancel-btn').addEventListener('click', () => {
+            try { winCont.modal_close(); } catch(_){}
+          });
 
-					// 送信: まずはダミー（次のステップでAPI連携を実装）
-					form.addEventListener('submit', async (ev) => {
-						ev.preventDefault();
-						msgEl.textContent = '送信中...';
+          // 送信: まずはダミー（次のステップでAPI連携を実装）
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            msgEl.textContent = '送信中...';
 
-						try {
-							const fd = new FormData(form);
-							// TODO: ここで保存先(API/GAS)にPOSTする
-							// 例:
-							// const res = await fetch(Conf.customPost.endpoint, { method: 'POST', body: fd });
-							// const json = await res.json();
-							// if (!json.ok) throw new Error(json.error || '投稿に失敗しました');
+            try {
+              const fd = new FormData(form);
+              // TODO: 保存先(API/GAS)にPOSTする処理をここに実装
 
-							// ひとまず動作確認のため即時成功扱い
-							msgEl.textContent = '投稿しました（ダミー）。';
-							setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 400);
+              // 動作確認のため即時成功扱い
+              msgEl.textContent = '投稿しました（ダミー）。';
+              setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 400);
+            } catch (err) {
+              msgEl.textContent = 'エラー: ' + (err && err.message ? err.message : err);
+            }
+          });
+        })();
+      </script>
+    `;
 
-							// TODO: 保存が成功したら、ユーザー投稿マーカーの再描画を行う
-						} catch (err) {
-							msgEl.textContent = 'エラー: ' + (err && err.message ? err.message : err);
-						}
-					});
-				})();
-			</script>
-		`;
-
-		winCont.modal_open({
-			title: "新しいメモ・写真を追加",
-			message: html,
-			mode: "close",           // まずは閉じるだけ（送信はフォーム内JSで処理）
-			callback_close: winCont.modal_close,
-			menu: false
-		});
-	}
+    winCont.modal_open({
+      title: "新しいメモ・写真を追加",
+      message: html,
+      mode: "close",           // まずは閉じるだけ（送信はフォーム内JSで処理）
+      callback_close: winCont.modal_close,
+      menu: false
+    });
+  }
 
 	about() {
 		let msg = { msg: glot.get("about_message"), ttl: glot.get("about") };
