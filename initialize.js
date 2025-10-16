@@ -64,6 +64,7 @@ window.addEventListener("DOMContentLoaded", function () {
 			glot.render();
 
 			const init_close = function () {
+				cMapMaker.addEvents();
 				listTable.makeSelectList(Conf.listTable.category);	// Must be executed before eventMoveMap
 				let eventMoveMap = cMapMaker.eventMoveMap.bind(cMapMaker);
 				eventMoveMap().then(() => {
