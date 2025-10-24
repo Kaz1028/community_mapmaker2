@@ -497,8 +497,8 @@ class CMapMaker {
 								listTable.makeList();					// view all list
 								listTable.makeSelectList(Conf.listTable.category)
 								listTable.filterCategory(listTable.getSelCategory())
-								this.viewArea(targets);	// in targets
-								this.viewPoi(targets);	// in targets
+								// this.viewArea(targets);	// POI非表示: コメントアウト
+								// this.viewPoi(targets);	// POI非表示: コメントアウト
 								this.makeImages()
 							};
 							resolve();
