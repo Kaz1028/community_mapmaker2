@@ -78,6 +78,73 @@
     return ContentService.createTextOutput(retdata).setMimeType(ContentService.MimeType.JSON);
   }
 
+  /**
+   * Handle POST from client (FormData).
+   * Expected fields: lat, lng, type, title, body (photo ignored in this simple handler)
+   * Appends a new row to the "activity" sheet and returns JSON {ok: true} on success.
+   */
+  function doPost(e) {
+    try {
+      // e.postData may be null when multipart/form-data is used; use e.parameters for text fields
+      var params = e.parameter || {};
+      // For some deployments, fields may appear in e.parameters as arrays
+      var lat = Array.isArray(params.lat) ? params.lat[0] : params.lat || '';
+      var lng = Array.isArray(params.lng) ? params.lng[0] : params.lng || '';
+      var type = Array.isArray(params.type) ? params.type[0] : params.type || '';
+      var title = Array.isArray(params.title) ? params.title[0] : params.title || '';
+      var body = Array.isArray(params.body) ? params.body[0] : params.body || '';
+
+      var ss = SpreadsheetApp.openById(SpreadsheetApp.getActiveSpreadsheet().getId());
+      var sheet = ss.getSheetByName('activity');
+      if (!sheet) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'no activity sheet' })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      // Build a row object according to existing sheet headers
+      var headers = sheet.getDataRange().getValues()[0]; // first row
+      var row = [];
+      var now = new Date();
+      for (var i = 0; i < headers.length; i++) {
+        var h = headers[i];
+        switch (h) {
+          case 'id':
+            // create a simple id using type + timestamp
+            row.push((type || 'user') + '/' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyyMMddHHmmss'));
+            break;
+          case 'lat':
+            row.push(lat);
+            break;
+          case 'lng':
+            row.push(lng);
+            break;
+          case 'type':
+            row.push(type);
+            break;
+          case 'title':
+            row.push(title);
+            break;
+          case 'body':
+          case 'memo':
+            row.push(body);
+            break;
+          case 'updatetime':
+            row.push(now);
+            break;
+          default:
+            // if header not recognized, push empty cell
+            row.push('');
+        }
+      }
+
+      // Append row to sheet
+      sheet.appendRow(row);
+
+      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: String(err) })).setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+
   function getData(sheet) {
     var rows = sheet.getDataRange().getValues();
     var keys = rows.splice(0, 1)[0];

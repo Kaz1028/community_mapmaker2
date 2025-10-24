@@ -65,7 +65,7 @@ window.addEventListener("DOMContentLoaded", function () {
 
 			const init_close = function () {
 				cMapMaker.addEvents();
-				cMapMaker.loadUserPoints(true); // 追加: 起動時にユーザー投稿を読み込み
+				cMapMaker.loadUserPoints(false); // 投稿を読み込むが地図は移動しない
 
 				listTable.makeSelectList(Conf.listTable.category);	// Must be executed before eventMoveMap
 				let eventMoveMap = cMapMaker.eventMoveMap.bind(cMapMaker);

@@ -1,5 +1,5 @@
-// USER投稿エンドポイント（あなたのGASのWebアプリURLに置き換えてください）
-const USER_POST_ENDPOINT = "https://script.google.com/macros/s/AKfycbwf9FaYa2HGUe0qVZ-kpcXlTnE-QVQDaJ1zAPM2Et2pq0JzZnOLDywgfM3n7Ov5pDU/exec";
+// Firebase を使用 (エンドポイント不要)
+const USER_POST_ENDPOINT = null; // Firebase 使用時は不要
 
 class CMapMaker {
 
@@ -76,6 +76,7 @@ class CMapMaker {
 			</form>
 			<script>
 				(function(){
+					console.log('memophoto script executed');
 					const form = document.getElementById('${formId}');
 					const typeEl = form.querySelector('select[name="type"]');
 					const photoRow = form.querySelector('#photo-row');
@@ -91,20 +92,45 @@ class CMapMaker {
 						try { winCont.modal_close(); } catch(_){}
 					});
 
-					// 送信: 実際に USER_POST_ENDPOINT へ POST し、成功したら loadUserPoints を呼ぶ
+					// 送信: Firebase に保存（写真は Google Drive にアップロード）
 					form.addEventListener('submit', async (ev) => {
 						ev.preventDefault();
 						msgEl.textContent = '送信中...';
 
 						try {
-							if (!USER_POST_ENDPOINT) throw new Error('投稿エンドポイントが未設定です');
+							// Firebase が読み込まれているか確認
+							if (!window.firebaseDB) throw new Error('Firebase が初期化されていません。ページを再読み込みしてください。');
 
 							const fd = new FormData(form);
+							let photo_url = '';
+							
+							// 写真タイプで写真ファイルがある場合、Google Drive にアップロード
+							const photoFile = fd.get('photo');
+							if (fd.get('type') === 'photo' && photoFile && photoFile.size > 0) {
+								msgEl.textContent = 'Google Drive にアップロード中...';
+								
+								// Google Drive にアップロード
+								if (!window.driveUploader) {
+									throw new Error('Google Drive アップローダーが読み込まれていません');
+								}
+								
+								photo_url = await window.driveUploader.uploadPhoto(photoFile);
+								msgEl.textContent = 'アップロード完了。データを保存中...';
+							}
+							
+							// FormData から投稿データを構築
+							const postData = {
+								lat: parseFloat(fd.get('lat')),
+								lng: parseFloat(fd.get('lng')),
+								type: fd.get('type'),
+								title: fd.get('title'),
+								body: fd.get('body'),
+								photo_url: photo_url
+							};
 
-							// 注意: 現時点のGASは写真未対応の想定です（photoは無視されるか特殊扱い）。
-							const res = await fetch(USER_POST_ENDPOINT, { method: 'POST', body: fd });
-							const json = await res.json();
-							if (!json.ok) throw new Error(json.error || '投稿に失敗しました');
+							// Firebase に保存
+							const result = await window.firebaseDB.addPost(postData);
+							if (!result.ok) throw new Error(result.error || '投稿に失敗しました');
 
 							msgEl.textContent = '投稿しました。マップを更新します…';
 							// モーダルを閉じる（短い遅延）
@@ -181,28 +207,38 @@ class CMapMaker {
 		});
 	};
 
-	// 追加: ユーザーポイント読み込みと描画
+	// 追加: ユーザーポイント読み込みと描画 (Firebase 版)
 	async loadUserPoints(resetView) {
-		if (!USER_POST_ENDPOINT) {
-			console.warn('USER_POST_ENDPOINT が未設定です');
+		if (!window.firebaseDB) {
+			console.warn('Firebase が初期化されていません');
 			return;
 		}
 		try {
-			const url = USER_POST_ENDPOINT + '?mode=list&_=' + Date.now();
-			const res = await fetch(url);
-			const data = await res.json();
-			if (!data.ok) throw new Error('取得失敗');
+			// Firebase から全投稿を取得
+			const data = await window.firebaseDB.getPosts();
+			if (!data.ok) throw new Error(data.error || '取得失敗');
 
 			// 既存のユーザーマーカーを削除
 			this.userMarkers.forEach(m => { try { m.remove(); } catch(_) {} });
 			this.userMarkers = [];
 
-			if (!data.items || data.items.length === 0) return;
+			if (!data.items || data.items.length === 0) {
+				console.log('投稿データはまだありません');
+				return;
+			}
+
+			console.log(`${data.items.length} 件の投稿を読み込みました`, data.items);
 
 			// マーカー生成
 			const bounds = new maplibregl.LngLatBounds();
 			data.items.forEach(it => {
 				try {
+					// データの検証
+					if (!it.lat || !it.lng) {
+						console.warn('緯度経度が不正な投稿をスキップ:', it);
+						return;
+					}
+					
 					const color = (it.type === 'photo') ? '#2a6' : '#1e88e5';
 					const marker = new maplibregl.Marker({ color })
 						.setLngLat([it.lng, it.lat])
