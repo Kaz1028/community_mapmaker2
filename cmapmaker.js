@@ -52,6 +52,17 @@ class CMapMaker {
 		list_keyword.addEventListener('change', this.eventChangeKeyword.bind(cMapMaker));	// 
 		list_category.addEventListener('change', this.eventChangeCategory.bind(cMapMaker));	// category change
 
+		// 住所検索のEnterキー対応
+		const addressInput = document.getElementById('address_search');
+		if (addressInput) {
+			addressInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					this.searchAddress();
+				}
+			});
+		}
+
 		// 地図クリックイベント
 		mapLibre.on('click', this.eventMapClick.bind(this));
 	};
@@ -192,6 +203,57 @@ class CMapMaker {
 		let msg = { msg: glot.get("about_message"), ttl: glot.get("about") };
 		winCont.modal_open({ "title": msg.ttl, "message": msg.msg, "mode": "close", callback_close: winCont.modal_close, "menu": false });
 	};
+
+	// 住所検索機能（Nominatim API 使用）
+	async searchAddress() {
+		const input = document.getElementById('address_search');
+		if (!input) return;
+		
+		const query = input.value.trim();
+		if (!query) {
+			alert('住所または町名を入力してください');
+			return;
+		}
+
+		const btn = document.getElementById('address_search_btn');
+		const originalText = btn ? btn.textContent : '検索';
+		
+		try {
+			if (btn) btn.textContent = '検索中...';
+			
+			// Nominatim API (OpenStreetMap のジオコーディングサービス)
+			const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=ja`;
+			const response = await fetch(url, {
+				headers: {
+					'User-Agent': 'CommunityMapMaker/1.0'
+				}
+			});
+			
+			if (!response.ok) throw new Error('検索に失敗しました');
+			
+			const results = await response.json();
+			
+			if (results.length === 0) {
+				alert('指定された場所が見つかりませんでした。別の住所や町名で試してください。');
+				return;
+			}
+			
+			const result = results[0];
+			const lat = parseFloat(result.lat);
+			const lng = parseFloat(result.lon);
+			
+			// 地図を移動（ズームレベル15）
+			mapLibre.flyTo([lng, lat], 15);
+			
+			console.log(`住所検索: ${result.display_name} [${lat}, ${lng}]`);
+			
+		} catch (error) {
+			console.error('住所検索エラー:', error);
+			alert('検索中にエラーが発生しました。もう一度お試しください。');
+		} finally {
+			if (btn) btn.textContent = originalText;
+		}
+	}
 
 	licence() {			// About license
 		let msg = { msg: glot.get("licence_message") + glot.get("more_message"), ttl: glot.get("licence_title") };

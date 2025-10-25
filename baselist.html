@@ -1,5 +1,6 @@
 <div class="row m-1 p-1 bg-white shadow-lg rounded-top">
-	<div class="col-12 p-2 mr-2 d-flex align-items-center">
+	<!-- 住所検索欄 -->
+	<div class="col-12 p-2 d-flex align-items-center">
 		<div class="dropdown">
 			<button class="btn btn-light border-secondary float-right menu mr-2" data-toggle="dropdown"
 				aria-expanded="true" id="global_menu">
@@ -12,10 +13,15 @@
 				<div class="dropdown-divider"></div>
 			</div>
 		</div>
-		<a href="javascript:cMapMaker.about()">
-			<span class="title" glot-model="site_title"></span><br />
-			<span class="subtitle" glot-model="site_subtitle"></span>
-		</a>
+		<div class="input-group flex-grow-1">
+			<div class="input-group-prepend">
+				<span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+			</div>
+			<input type="text" class="form-control" id="address_search" placeholder="住所・町名で検索 (例: 福知山市, 京都府)" />
+			<div class="input-group-append">
+				<button class="btn btn-primary" id="address_search_btn" onclick="cMapMaker.searchAddress()">検索</button>
+			</div>
+		</div>
 	</div>
 	<div class="col-12 p-2 mr-2 d-flex align-items-center">
 		<div class="h-100 d-flex align-items-center text-nowrap"><span glot-model="cat_select"></span></div>
