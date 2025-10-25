@@ -19,7 +19,31 @@ class CMapMaker {
 
 		// 追加: ユーザー投稿マーカー管理
 		this.userMarkers = [];
+		// 追加: 写真用のサムネイルマーカー管理
+		this.userThumbMarkers = [];
 	};
+
+	// Google DriveのURLからfileIdを抽出
+	_getDriveFileIdFromUrl(url) {
+		try {
+			if (!url) return null;
+			// パターン1: ...uc?export=*&id=FILE_ID
+			const m1 = url.match(/[?&]id=([^&]+)/);
+			if (m1) return decodeURIComponent(m1[1]);
+			// パターン2: webViewLink/webContentLinkなどに含まれる場合
+			const m2 = url.match(/\/d\/([A-Za-z0-9_-]{10,})/);
+			if (m2) return m2[1];
+			return null;
+		} catch(_) { return null; }
+	}
+
+	// DriveのサムネイルURLを生成（公開ファイル前提）
+	_getDriveThumbnailUrl(url, size = 128) {
+		const id = this._getDriveFileIdFromUrl(url);
+		if (!id) return null;
+		// sz=w<size> で横幅指定のサムネイルが返る
+		return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`;
+	}
 
 	addEvents() {
 		console.log("CMapMaker: init.");
@@ -67,7 +91,11 @@ class CMapMaker {
 				</label>
 				<label>タイトル<br><input type="text" name="title" required></label>
 				<label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
-				<label id="photo-row" style="display:none">写真ファイル<br><input type="file" name="photo" accept="image/*"></label>
+				<label id="photo-row" style="display:none">
+					写真<br>
+					<input type="file" name="photo" accept="image/*" capture="environment">
+					<small style="color:#666;display:block;margin-top:2px">※スマホではカメラ起動、PCではファイル選択</small>
+				</label>
 				<div style="display:flex;gap:8px;justify-content:flex-end">
 					<button type="button" id="cancel-btn">キャンセル</button>
 					<button type="submit">送信</button>
@@ -92,14 +120,14 @@ class CMapMaker {
 						try { winCont.modal_close(); } catch(_){}
 					});
 
-					// 送信: Firebase に保存（写真は Google Drive にアップロード）
+					// 送信: Google Sheets に保存（写真は Google Drive にアップロード）
 					form.addEventListener('submit', async (ev) => {
 						ev.preventDefault();
 						msgEl.textContent = '送信中...';
 
 						try {
-							// Firebase が読み込まれているか確認
-							if (!window.firebaseDB) throw new Error('Firebase が初期化されていません。ページを再読み込みしてください。');
+							// Sheets DB が読み込まれているか確認
+							if (!window.sheetsDB) throw new Error('Sheets DB が初期化されていません。ページを再読み込みしてください。');
 
 							const fd = new FormData(form);
 							let photo_url = '';
@@ -128,8 +156,8 @@ class CMapMaker {
 								photo_url: photo_url
 							};
 
-							// Firebase に保存
-							const result = await window.firebaseDB.addPost(postData);
+							// Google Sheets に保存
+							const result = await window.sheetsDB.addPost(postData);
 							if (!result.ok) throw new Error(result.error || '投稿に失敗しました');
 
 							msgEl.textContent = '投稿しました。マップを更新します…';
@@ -207,20 +235,30 @@ class CMapMaker {
 		});
 	};
 
-	// 追加: ユーザーポイント読み込みと描画 (Firebase 版)
+	// 追加: ユーザーポイント読み込みと描画 (Google Sheets 版)
 	async loadUserPoints(resetView) {
-		if (!window.firebaseDB) {
-			console.warn('Firebase が初期化されていません');
+		if (!window.sheetsDB) {
+			console.warn('Sheets DB が初期化されていません');
 			return;
 		}
 		try {
-			// Firebase から全投稿を取得
-			const data = await window.firebaseDB.getPosts();
-			if (!data.ok) throw new Error(data.error || '取得失敗');
+			console.log('loadUserPoints: 投稿データを読み込んでいます...');
+			// Google Sheets から全投稿を取得
+			const data = await window.sheetsDB.getPosts();
+			if (!data.ok) {
+				// 認証エラーの可能性
+				if (data.error && data.error.includes('credentials')) {
+					console.log('loadUserPoints: OAuth認証が必要です。投稿時に認証されます。');
+					return; // エラーを投げずに静かに終了
+				}
+				throw new Error(data.error || '取得失敗');
+			}
 
 			// 既存のユーザーマーカーを削除
 			this.userMarkers.forEach(m => { try { m.remove(); } catch(_) {} });
+			this.userThumbMarkers.forEach(m => { try { m.remove(); } catch(_) {} });
 			this.userMarkers = [];
+			this.userThumbMarkers = [];
 
 			if (!data.items || data.items.length === 0) {
 				console.log('投稿データはまだありません');
@@ -246,6 +284,71 @@ class CMapMaker {
 						.addTo(mapLibre.map);
 					this.userMarkers.push(marker);
 					bounds.extend([it.lng, it.lat]);
+
+					// 追加: ピンの近くにタイトル付きカードを表示（写真はサムネイル付き、メモはタイトルのみ）
+					try {
+						const container = document.createElement('div');
+						container.style.cssText = [
+							'background:rgba(255,255,255,0.95)',
+							'padding:4px',
+							'margin:0',
+							'border-radius:8px',
+							'box-shadow:0 2px 8px rgba(0,0,0,0.35)',
+							'display:flex',
+							'flex-direction:column',
+							'align-items:center',
+							'gap:2px',
+							'max-width:80px',
+							'cursor:pointer'
+						].join(';');
+						
+						// 写真の場合はサムネイル表示
+						if (it.type === 'photo' && it.photo_url) {
+							const img = document.createElement('img');
+							// Driveの埋め込みで壊れるケースがあるため、サムネイル専用URLを優先
+							const thumbUrl = this._getDriveThumbnailUrl(it.photo_url, 96) || it.photo_url;
+							img.src = thumbUrl;
+							img.alt = (it.title || 'photo');
+							img.loading = 'lazy';
+							img.style.cssText = [
+								'width:72px',
+								'height:auto',
+								'border-radius:6px',
+								'display:block'
+							].join(';');
+							// もしサムネイルURLで失敗したら元URLへフォールバック
+							img.onerror = () => { try { img.onerror = null; img.src = it.photo_url; } catch(_) {} };
+							container.appendChild(img);
+						}
+						
+						// タイトルを追加（写真・メモ共通）
+						const titleEl = document.createElement('div');
+						const titleText = (it.title || '無題').substring(0, 20); // 最大20文字
+						titleEl.textContent = titleText.length < (it.title || '').length ? titleText + '...' : titleText;
+						titleEl.style.cssText = [
+							'font-size:10px',
+							'color:#333',
+							'text-align:center',
+							'word-break:break-all',
+							'line-height:1.2',
+							'max-width:72px',
+							'font-weight:500',
+							'padding:2px 4px'
+						].join(';');
+						container.appendChild(titleEl);
+
+						// クリックで元のマーカーのポップアップを開く
+						container.addEventListener('click', () => {
+							try { marker.togglePopup(); } catch(_) {}
+						});
+
+						const thumbMarker = new maplibregl.Marker({ element: container, anchor: 'bottom', offset: [46, -10] })
+							.setLngLat([it.lng, it.lat])
+							.addTo(mapLibre.map);
+						this.userThumbMarkers.push(thumbMarker);
+					} catch (e) {
+						console.warn('サムネイルマーカー追加失敗', e);
+					}
 				} catch (err) {
 					console.warn('ユーザーマーカー追加失敗', err, it);
 				}
