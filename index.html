@@ -18,6 +18,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css" integrity="sha384-zCbKRCUGaJDkqS1kPbPd7TveP5iyJE0EjAuZQTgFLD2ylzuqKfdKlfG/eSrtxUkn" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs@6.0.6/dist/theme/mermaid.min.css" />
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.3.1/dist/maplibre-gl.css" />
+
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#1e88e5">
+  <link rel="apple-touch-icon" href="./image/icon-192.png">
   <link rel="stylesheet" href="base.css" />
   
   <!-- Google Identity Services (新しい認証ライブラリ) -->
@@ -49,16 +53,27 @@
   <script defer src="./modal/modal_osmbasic.js"></script>
   
   <!-- Firebase SDK -->
-  <script type="module" src="./firebase.js?v=20251025b"></script>
+  <script type="module" src="./firebase.js?v=20251027b"></script>
   
   <!-- Google Drive Upload -->
-  <script defer src="./drive-upload.js?v=20251025b"></script>
+  <script defer src="./drive-upload.js?v=20251027b"></script>
   
   <!-- Google Sheets DB -->
-  <script defer src="./sheets-db.js?v=20251025b"></script>
+  <script defer src="./sheets-db.js?v=20251027b"></script>
   
-  <script defer src="./cmapmaker.js?v=20251025b"></script>
-  <script defer src="./initialize.js?v=20251025b"></script>
+  <script defer src="./offline-sync.js?v=20251027b"></script>
+  <script defer src="./cmapmaker.js?v=20251027b"></script>
+  <script defer src="./initialize.js?v=20251027b"></script>
+  <script>
+    // Service Worker を登録
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('Service Worker registered:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
 </head>
 
 <body>

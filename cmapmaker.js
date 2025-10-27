@@ -1,5 +1,5 @@
-// Firebase を使用 (エンドポイント不要)
-const USER_POST_ENDPOINT = null; // Firebase 使用時は不要
+// Firebase/Google Sheets を使用 (エンドポイント不要)
+const USER_POST_ENDPOINT = null; // 旧GASエンドポイントは不要
 
 class CMapMaker {
 
@@ -93,7 +93,8 @@ class CMapMaker {
 				<label>本文/説明<br><textarea name="body" rows="4" required></textarea></label>
 				<label id="photo-row" style="display:none">
 					写真<br>
-					<input type="file" name="photo" accept="image/*" capture="environment">
+					<!-- capture 属性を外して、ギャラリー選択もできるようにする -->
+					<input type="file" name="photo" accept="image/*">
 					<small style="color:#666;display:block;margin-top:2px">※スマホではカメラ起動、PCではファイル選択</small>
 				</label>
 				<div style="display:flex;gap:8px;justify-content:flex-end">
@@ -131,21 +132,21 @@ class CMapMaker {
 
 							const fd = new FormData(form);
 							let photo_url = '';
-							
+
 							// 写真タイプで写真ファイルがある場合、Google Drive にアップロード
 							const photoFile = fd.get('photo');
 							if (fd.get('type') === 'photo' && photoFile && photoFile.size > 0) {
 								msgEl.textContent = 'Google Drive にアップロード中...';
-								
+
 								// Google Drive にアップロード
 								if (!window.driveUploader) {
 									throw new Error('Google Drive アップローダーが読み込まれていません');
 								}
-								
+
 								photo_url = await window.driveUploader.uploadPhoto(photoFile);
 								msgEl.textContent = 'アップロード完了。データを保存中...';
 							}
-							
+
 							// FormData から投稿データを構築
 							const postData = {
 								lat: parseFloat(fd.get('lat')),
@@ -156,19 +157,25 @@ class CMapMaker {
 								photo_url: photo_url
 							};
 
-							// Google Sheets に保存
-							const result = await window.sheetsDB.addPost(postData);
-							if (!result.ok) throw new Error(result.error || '投稿に失敗しました');
 
-							msgEl.textContent = '投稿しました。マップを更新します…';
-							// モーダルを閉じる（短い遅延）
-							setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 200);
-
-							// 仮マーカーを消す
-							try { if (cMapMaker.tempMarker) { cMapMaker.tempMarker.remove(); cMapMaker.tempMarker = null; } } catch(_){}
-
-							// 投稿一覧を再読み込みしてマーカーを更新
-							try { cMapMaker.loadUserPoints(false); } catch(e){ console.warn('loadUserPoints エラー', e); }
+							// オフライン対応: オフラインならIndexedDBに一時保存、オンラインなら従来通り送信
+							if (!navigator.onLine) {
+								// オフライン時: IndexedDBに保存
+								await window.offlineSync.savePending(postData);
+								msgEl.textContent = 'オフラインのため一時保存しました。オンライン復帰時に自動送信されます。';
+								// ローカルピンを即座に表示（仮実装: reloadUserPointsで反映）
+								setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 200);
+								try { if (cMapMaker.tempMarker) { cMapMaker.tempMarker.remove(); cMapMaker.tempMarker = null; } } catch(_){}
+								try { cMapMaker.loadUserPoints(false); } catch(e){ console.warn('loadUserPoints エラー', e); }
+							} else {
+								// オンライン時: Google Sheetsに送信
+								const result = await window.sheetsDB.addPost(postData);
+								if (!result.ok) throw new Error(result.error || '投稿に失敗しました');
+								msgEl.textContent = '投稿しました。マップを更新します…';
+								setTimeout(()=>{ try { winCont.modal_close(); } catch(_){} }, 200);
+								try { if (cMapMaker.tempMarker) { cMapMaker.tempMarker.remove(); cMapMaker.tempMarker = null; } } catch(_){}
+								try { cMapMaker.loadUserPoints(false); } catch(e){ console.warn('loadUserPoints エラー', e); }
+							}
 
 						} catch (err) {
 							msgEl.textContent = 'エラー: ' + (err && err.message ? err.message : err);
