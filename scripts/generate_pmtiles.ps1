@@ -22,7 +22,16 @@ function Assert-Cmd($cmd, $hint) {
 }
 
 Write-Host "== Checking prerequisites =="
-Assert-Cmd 'java' 'Install Java 17+ (Temurin).'
+# Use absolute path for Java if available
+$javaExe = "java"
+$javaHome = "C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot\bin\java.exe"
+if (Test-Path $javaHome) {
+  $javaExe = $javaHome
+  Write-Host "Using Java at: $javaExe"
+} else {
+  Assert-Cmd 'java' 'Install Java 17+ (Temurin).'
+}
+
 function Convert-ToPmtiles($mb, $pm) {
   # Try native pmtiles CLI
   $pmtilesCmd = (Get-Command 'pmtiles' -ErrorAction SilentlyContinue)
@@ -62,7 +71,7 @@ if (!(Test-Path $planetilerJar)) {
 }
 
 Write-Host "== Generating MBTiles with Planetiler (this may take a while) =="
-& java -Xmx8g -jar $planetilerJar --download --area=$bounds --output=$outMbtiles
+& $javaExe -Xmx8g -jar $planetilerJar --download --area=$bounds --output=$outMbtiles
 
 Write-Host "== Converting to PMTiles =="
 Convert-ToPmtiles $outMbtiles $outPmtiles
