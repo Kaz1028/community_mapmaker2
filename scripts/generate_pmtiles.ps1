@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 # Parameters
 $bounds = '134.90,35.05,135.45,35.55' # west,south,east,north (Fukuchiyama area wide)
 $workDir = Join-Path (Get-Location) 'tools'
-$planetilerJar = Join-Path $workDir 'planetiler-openmaptiles.jar'
+$planetilerJar = Join-Path $workDir 'planetiler.jar'
 $outMbtiles = Join-Path $workDir 'fukuchiyama.mbtiles'
 $outPmtiles = Join-Path (Join-Path (Get-Location) 'tiles') 'fukuchiyama.pmtiles'
 
@@ -56,13 +56,13 @@ function Convert-ToPmtiles($mb, $pm) {
 }
 
 if (!(Test-Path $planetilerJar)) {
-  Write-Host "== Downloading planetiler-openmaptiles.jar =="
-  $release = 'https://github.com/onthegomap/planetiler-openmaptiles/releases/latest/download/planetiler-openmaptiles.jar'
+  Write-Host "== Downloading planetiler.jar =="
+  $release = 'https://github.com/onthegomap/planetiler/releases/latest/download/planetiler.jar'
   Invoke-WebRequest -Uri $release -OutFile $planetilerJar
 }
 
 Write-Host "== Generating MBTiles with Planetiler (this may take a while) =="
-& java -Xmx8g -jar $planetilerJar --download --bounds=$bounds --output=$outMbtiles
+& java -Xmx8g -jar $planetilerJar --download --area=$bounds --output=$outMbtiles
 
 Write-Host "== Converting to PMTiles =="
 Convert-ToPmtiles $outMbtiles $outPmtiles
