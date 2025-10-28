@@ -23,7 +23,32 @@ function Assert-Cmd($cmd, $hint) {
 
 Write-Host "== Checking prerequisites =="
 Assert-Cmd 'java' 'Install Java 17+ (Temurin).'
-Assert-Cmd 'pmtiles' 'Install pmtiles CLI from https://github.com/protomaps/PMTiles/releases and add to PATH.'
+function Convert-ToPmtiles($mb, $pm) {
+  # Try native pmtiles CLI
+  $pmtilesCmd = (Get-Command 'pmtiles' -ErrorAction SilentlyContinue)
+  if ($pmtilesCmd) {
+    & pmtiles convert $mb $pm
+    return
+  }
+  # Try Python pmtiles (PyPI: pmtiles)
+  $py = (Get-Command 'python' -ErrorAction SilentlyContinue)
+  if ($py) {
+    try {
+      Write-Host "== Using Python module 'pmtiles' to convert =="
+      & python -m pmtiles.cli convert $mb $pm
+      return
+    } catch {
+      Write-Host "Python module 'pmtiles' not available, trying 'pypmtiles'..."
+      try {
+        & python -m pypmtiles.cli convert $mb $pm
+        return
+      } catch {
+        throw "Neither 'pmtiles' CLI nor Python modules ('pmtiles'/'pypmtiles') are available. Install one of: `n- Go: go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest`n- Python: pip install pmtiles  または pip install pypmtiles"
+      }
+    }
+  }
+  throw "Command not found: pmtiles. Install one of: `n- Go: go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest`n- Python: pip install pmtiles  または pip install pypmtiles"
+}
 
 if (!(Test-Path $planetilerJar)) {
   Write-Host "== Downloading planetiler-openmaptiles.jar =="
@@ -35,7 +60,7 @@ Write-Host "== Generating MBTiles with Planetiler (this may take a while) =="
 & java -Xmx8g -jar $planetilerJar --download --bounds=$bounds --output=$outMbtiles
 
 Write-Host "== Converting to PMTiles =="
-& pmtiles convert $outMbtiles $outPmtiles
+Convert-ToPmtiles $outMbtiles $outPmtiles
 
 Write-Host "== Done =="
 Write-Host "Output: $outPmtiles"
