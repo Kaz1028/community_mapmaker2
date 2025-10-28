@@ -62,10 +62,10 @@
   <script defer src="./cmapmaker.js?v=20251028b"></script>
   <script defer src="./initialize.js?v=20251028b"></script>
   <script>
-    // Service Worker を登録（一時的に無効化してデバッグ）
-    if (false && 'serviceWorker' in navigator) {
+    // Service Worker を登録
+    if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
+        navigator.serviceWorker.register('./service-worker.js?v=2')
           .then(reg => console.log('Service Worker registered:', reg.scope))
           .catch(err => console.error('Service Worker registration failed:', err));
       });

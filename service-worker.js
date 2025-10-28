@@ -1,11 +1,13 @@
-const CACHE_NAME = 'mapmaker-v1';
-const OFFLINE_CACHE = 'mapmaker-offline-v1';
+const CACHE_NAME = 'mapmaker-v2';
+const OFFLINE_CACHE = 'mapmaker-offline-v2';
 const STATIC_FILES = [
   './',
   './index.html',
   './base.css',
+  './baselist.html',
   './cmapmaker.js',
   './initialize.js',
+  './offline-sync.js',
   './lib/basiclib.js',
   './lib/geolib.js',
   './lib/gsheetlib.js',
@@ -19,8 +21,18 @@ const STATIC_FILES = [
   './modal/modal_wikipedia.js',
   './drive-upload.js',
   './sheets-db.js',
-  'https://unpkg.com/maplibre-gl@4.3.1/dist/maplibre-gl.js',
-  'https://unpkg.com/maplibre-gl@4.3.1/dist/maplibre-gl.css'
+  './data/config-user.jsonc',
+  './data/config-system.jsonc',
+  './data/config-activities.jsonc',
+  './data/marker.jsonc',
+  './data/category-ja.jsonc',
+  './data/category-en.jsonc',
+  './data/listtable-ja.jsonc',
+  './data/listtable-en.jsonc',
+  './data/overpass-system.jsonc',
+  './data/overpass-custom.jsonc',
+  './data/glot-custom.jsonc',
+  './data/glot-system.jsonc'
 ];
 self.addEventListener('install', (event) => {
   event.waitUntil(
