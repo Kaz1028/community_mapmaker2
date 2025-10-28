@@ -21,6 +21,7 @@ const STATIC_FILES = [
   './modal/modal_wikipedia.js',
   './drive-upload.js',
   './sheets-db.js',
+  './tiles/osm-offline.json',
   './data/config-user.jsonc',
   './data/config-system.jsonc',
   './data/config-activities.jsonc',

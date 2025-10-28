@@ -17,6 +17,9 @@
         "OSMFJ": {
             "style": "./tiles/osmfj.json"
         },
+        "OSM_Offline": {
+            "style": "./tiles/osm-offline.json"
+        },
         "OSM_Standard": {
             "style": {
                 "version": 8,
@@ -81,7 +84,7 @@
                     {
                         "id": "raster-tiles",
                         "type": "raster",
-                        "source": "rtile",
+                        "source": "rtile"
                     }
                 ]
             }

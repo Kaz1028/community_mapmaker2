@@ -2,6 +2,7 @@
 {
     "map": {
         "tileName": "OSMFJ", // 初期表示のタイル名(タイル一覧はconfig-system.jsonc)
+        "offlineTileName": "OSM_Offline", // オフライン時に優先使用するPMTilesスタイル名
         "viewCenter": [ // 引数無しでURLを開いた時の初期座標
             135.1246,
             35.2965

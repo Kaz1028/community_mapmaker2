@@ -1,0 +1,49 @@
+{
+  "version": 8,
+  "name": "OSM Offline (PMTiles)",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "url": "pmtiles://./tiles/fukuchiyama.pmtiles"
+    }
+  },
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#f6f1e5" } },
+
+    { "id": "landcover_cropland", "type": "fill", "source": "openmaptiles", "source-layer": "landcover",
+      "layout": { "visibility": "visible" },
+      "paint": { "fill-color": "rgba(243, 235, 195, 1)", "fill-opacity": { "base": 1, "stops": [[4,1],[8,0]] } },
+      "filter": ["all", ["==", "class", "crop"]]
+    },
+    { "id": "landcover_grassland", "type": "fill", "source": "openmaptiles", "source-layer": "landcover",
+      "paint": { "fill-color": "rgba(226, 236, 197, 1)", "fill-opacity": { "base": 1, "stops": [[4,1],[8,0]] } },
+      "filter": ["all", ["==", "class", "grass"]]
+    },
+
+    { "id": "water", "type": "fill", "source": "openmaptiles", "source-layer": "water",
+      "layout": { "visibility": "visible" },
+      "paint": { "fill-color": "rgba(134, 204, 250, 1)" },
+      "filter": ["all", ["!=", "intermittent", 1], ["!=", "brunnel", "tunnel"]]
+    },
+
+    { "id": "waterway_river", "type": "line", "source": "openmaptiles", "source-layer": "waterway",
+      "layout": { "line-cap": "round", "visibility": "visible" },
+      "paint": { "line-color": "#a0c8f0", "line-width": { "base": 1.2, "stops": [[11,0.5],[20,6]] } },
+      "filter": ["all", ["==", "class", "river"], ["!=", "brunnel", "tunnel"], ["!=", "intermittent", 1]]
+    },
+
+    { "id": "road_minor", "type": "line", "source": "openmaptiles", "source-layer": "transportation",
+      "paint": { "line-color": "#fff", "line-width": { "base": 1.2, "stops": [[13.5,0],[14,2],[20,10]] } },
+      "filter": ["all", ["in", "class", "minor", "service", "track"], ["!=", "brunnel", "tunnel"]]
+    },
+    { "id": "road_major", "type": "line", "source": "openmaptiles", "source-layer": "transportation",
+      "paint": { "line-color": "#ffdaa6", "line-width": { "base": 1.2, "stops": [[5,0],[7,1],[20,18]] } },
+      "filter": ["all", ["in", "class", "primary", "trunk", "motorway"], ["!=", "brunnel", "tunnel"]]
+    },
+
+    { "id": "place_label_city", "type": "symbol", "source": "openmaptiles", "source-layer": "place",
+      "layout": { "text-field": ["get","name"], "text-size": 12 },
+      "paint": { "text-color": "#444", "text-halo-color": "#fff", "text-halo-width": 1 }
+    }
+  ]
+}
