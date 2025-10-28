@@ -1,5 +1,5 @@
-const CACHE_NAME = 'mapmaker-v3';
-const OFFLINE_CACHE = 'mapmaker-offline-v3';
+const CACHE_NAME = 'mapmaker-v4';
+const OFFLINE_CACHE = 'mapmaker-offline-v4';
 const STATIC_FILES = [
   './',
   './index.html',
@@ -21,6 +21,7 @@ const STATIC_FILES = [
   './modal/modal_wikipedia.js',
   './drive-upload.js',
   './sheets-db.js',
+  './tiles/fukuchiyama.pmtiles',
   './tiles/osm-offline.json',
   './data/config-user.jsonc',
   './data/config-system.jsonc',
@@ -83,6 +84,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.url.includes('googleapis.com') || request.url.includes('google.com/gsi')) return;
+  // PMTiles: try network, fallback to full cached file (ignoring Range).
+  if (request.url.endsWith('.pmtiles')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const cloned = response.clone();
+          caches.open(OFFLINE_CACHE).then((cache) => cache.put(request, cloned));
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request.url).then((resp) => resp || caches.match(request));
+        })
+    );
+    return;
+  }
   if (request.url.includes('/tiles/') || request.url.includes('tile.openstreetmap')) {
     event.respondWith(
       fetch(request)
