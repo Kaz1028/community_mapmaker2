@@ -99,28 +99,54 @@ window.sheetsDB = {
   // 全投稿を取得
   async getPosts() {
     try {
-      // drive-upload.js の init を呼んで gapi.client を確実に初期化
-      if (window.driveUploader && !window.driveUploader.isInitialized) {
-        console.log('sheetsDB: initializing driveUploader...');
-        await window.driveUploader.init();
+      // オフライン時はすぐに空配列を返して初期化のハングを防ぐ
+      if (!navigator.onLine) {
+        console.log('sheetsDB: offline detected, return empty items');
+        // 将来用: ローカルキャッシュがあれば使う
+        try {
+          const cached = localStorage.getItem('sheetsDB_last_items');
+          if (cached) {
+            const items = JSON.parse(cached);
+            return { ok: true, items };
+          }
+        } catch(_) {}
+        return { ok: true, items: [] };
       }
-      
-      await this.init();
-      
-      // トークンがある場合のみ確認（ない場合は認証ダイアログを出さない）
-      if (window.driveUploader && window.driveUploader.accessToken) {
-        await window.driveUploader.ensureToken();
+
+      // オンライン時: 可能ならAPI、なければ公開CSVにフォールバック
+      let canUseApi = false;
+      try {
+        canUseApi = !!(window.gapi && gapi.client && gapi.client.sheets);
+      } catch(_) { canUseApi = false; }
+
+      if (canUseApi) {
+        // drive-upload.js の init を呼んで gapi.client を確実に初期化
+        if (window.driveUploader && !window.driveUploader.isInitialized) {
+          console.log('sheetsDB: initializing driveUploader...');
+          await window.driveUploader.init();
+        }
+
+        await this.init();
+        
+        // トークンがある場合のみ確認（ない場合は認証ダイアログを出さない）
+        if (window.driveUploader && window.driveUploader.accessToken) {
+          await window.driveUploader.ensureToken();
+        }
       }
       
       console.log('sheetsDB: fetching posts...');
       
       let response;
       try {
-        // Sheets API でデータ取得（OAuth認証済みの場合）
-        response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: this.SPREADSHEET_ID,
-          range: `${this.SHEET_NAME}!A:H` // A〜H列
-        });
+        if (canUseApi) {
+          // Sheets API でデータ取得（OAuth認証済みの場合）
+          response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: this.SPREADSHEET_ID,
+            range: `${this.SHEET_NAME}!A:H` // A〜H列
+          });
+        } else {
+          throw new Error('API unavailable, use CSV');
+        }
       } catch (apiError) {
         // API呼び出し失敗時は公開CSV形式で取得（認証不要）
         console.log('sheetsDB: API failed, trying public CSV...', apiError);
@@ -163,7 +189,9 @@ window.sheetsDB = {
         return tb - ta;
       });
       
-      console.log(`sheetsDB: fetched ${items.length} posts`, items);
+  console.log(`sheetsDB: fetched ${items.length} posts`, items);
+  // 取得したデータをローカルにキャッシュ（簡易）
+  try { localStorage.setItem('sheetsDB_last_items', JSON.stringify(items)); } catch(_) {}
       return { ok: true, items };
       
     } catch (error) {
