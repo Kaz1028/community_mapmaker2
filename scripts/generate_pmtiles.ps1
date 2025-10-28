@@ -31,16 +31,21 @@ function Convert-ToPmtiles($mb, $pm) {
     return
   }
   # Try Python pmtiles (PyPI: pmtiles)
+  $pycmd = $null
   $py = (Get-Command 'python' -ErrorAction SilentlyContinue)
-  if ($py) {
+  if ($py) { $pycmd = 'python' } else {
+    $pyAlt = (Get-Command 'py' -ErrorAction SilentlyContinue)
+    if ($pyAlt) { $pycmd = 'py' }
+  }
+  if ($pycmd) {
     try {
       Write-Host "== Using Python module 'pmtiles' to convert =="
-      & python -m pmtiles.cli convert $mb $pm
+      & $pycmd -m pmtiles.cli convert $mb $pm
       return
     } catch {
       Write-Host "Python module 'pmtiles' not available, trying 'pypmtiles'..."
       try {
-        & python -m pypmtiles.cli convert $mb $pm
+        & $pycmd -m pypmtiles.cli convert $mb $pm
         return
       } catch {
         throw "Neither 'pmtiles' CLI nor Python modules ('pmtiles'/'pypmtiles') are available. Install one of: `n- Go: go install github.com/protomaps/go-pmtiles/cmd/pmtiles@latest`n- Python: pip install pmtiles  または pip install pypmtiles"
