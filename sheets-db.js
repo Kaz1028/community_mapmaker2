@@ -125,7 +125,7 @@ window.sheetsDB = {
         // API呼び出し失敗時は公開CSV形式で取得（認証不要）
         console.log('sheetsDB: API failed, trying public CSV...', apiError);
         const csvUrl = `https://docs.google.com/spreadsheets/d/${this.SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(this.SHEET_NAME)}`;
-        const csvResponse = await fetch(csvUrl);
+  const csvResponse = await fetch(csvUrl + `&cb=${Date.now()}` , { cache: 'no-store' });
         if (!csvResponse.ok) throw new Error('公開シートの取得に失敗しました');
         const csvText = await csvResponse.text();
         const rows = this._parseCSV(csvText);
